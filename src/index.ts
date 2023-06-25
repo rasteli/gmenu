@@ -28,7 +28,8 @@ async function main() {
   await select(defaultDir, {
     tui,
     type,
-    openWith
+    openWith,
+    index: 0
   })
 }
 

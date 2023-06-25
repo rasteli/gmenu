@@ -1,8 +1,10 @@
 import fs from 'node:fs'
+import path from 'node:path'
 import inquirer from 'inquirer'
-import { spawn } from 'node:child_process'
+import { spawnProcess } from '../utils/spawn-process'
 
 interface SelectOptions {
+  index: number
   tui?: boolean
   type: string
   openWith: string
@@ -10,8 +12,10 @@ interface SelectOptions {
 
 export async function select(
   defaultDir: string,
-  { type, openWith, tui }: SelectOptions
+  { type, openWith, tui, index }: SelectOptions
 ) {
+  const isChild = index > 0
+
   const content = fs.readdirSync(defaultDir).map(path => {
     const absolutePath = `${defaultDir}/${path}`
 
@@ -21,6 +25,8 @@ export async function select(
     }
   })
 
+  const choices = content.map(value => value.path)
+
   const answer = await inquirer.prompt<{
     path: string
   }>([
@@ -28,9 +34,22 @@ export async function select(
       type: 'search-list',
       name: 'path',
       message: `Select ${type}`,
-      choices: content.map(value => value.path)
+      choices: isChild ? ['..', ...choices] : choices
     }
   ])
+
+  if (isChild && answer.path === '..') {
+    defaultDir = path.resolve(defaultDir, '..')
+
+    await select(defaultDir, {
+      tui,
+      type,
+      openWith,
+      index: index - 1
+    })
+
+    return
+  }
 
   const answerContent = content.find(value => value.path === answer.path)
 
@@ -40,7 +59,8 @@ export async function select(
     await select(defaultDir, {
       tui,
       type,
-      openWith
+      openWith,
+      index: index + 1
     })
 
     return
@@ -50,20 +70,8 @@ export async function select(
 
   if (tui) {
     const terminal = 'alacritty'
-    const child = spawn(terminal, ['-e', openWith, typePath], {
-      stdio: 'inherit',
-      shell: true,
-      detached: true
-    })
-
-    child.unref()
+    spawnProcess(terminal, ['-e', openWith, typePath])
   } else {
-    const child = spawn(openWith, [typePath], {
-      stdio: 'inherit',
-      shell: true,
-      detached: true
-    })
-
-    child.unref()
+    spawnProcess(openWith, [typePath])
   }
 }
