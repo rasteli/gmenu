@@ -34,7 +34,8 @@ export async function select(
       type: 'search-list',
       name: 'path',
       message: `Select ${type}`,
-      choices: isChild ? ['..', ...choices] : choices
+      choices: isChild ? ['..', ...choices] : choices,
+      pageSize: 20
     }
   ])
 
